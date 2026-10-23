@@ -1,0 +1,16 @@
+{
+  "manifest_version": 2,
+  "name": "DOI Citation Count",
+  "version": "0.1.0",
+  "description": "Fetch publication citation counts by DOI using api.rua.dev.",
+  "applications": {
+    "zotero": {
+      "id": "doi-citation-count@rua-local",
+      "strict_min_version": "7.0",
+      "strict_max_version": "10.*",
+      "update_url": "https://github.com/Adoream/zotero-citation-count/releases/latest/download/updates.json"
+    }
+  },
+  "homepage_url": "https://github.com/Adoream/zotero-citation-count",
+  "author": "Adoream"
+}

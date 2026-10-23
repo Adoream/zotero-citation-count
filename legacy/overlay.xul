@@ -1,0 +1,5 @@
+<?xml version="1.0"?>
+<overlay id="doi-citation-count-overlay" xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
+  <script type="application/javascript" src="chrome://doi-citation-count/content/lib.js"/>
+  <script type="application/javascript" src="chrome://doi-citation-count/content/overlay.js"/>
+</overlay>

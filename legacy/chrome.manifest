@@ -1,0 +1,4 @@
+content doi-citation-count ./
+overlay chrome://zotero/content/zotero.xul chrome://doi-citation-count/content/overlay.xul
+overlay chrome://zotero/content/standalone/standalone.xul chrome://doi-citation-count/content/overlay.xul
+overlay chrome://browser/content/browser.xul chrome://doi-citation-count/content/overlay.xul

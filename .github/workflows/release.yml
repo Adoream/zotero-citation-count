@@ -1,0 +1,76 @@
+name: Build and release
+
+on:
+  push:
+    branches: [master]
+    tags: ['v*']
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate release tag
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          version = json.loads(Path('manifest.json').read_text())['version']
+          if os.environ['RELEASE_TAG'] != f'v{version}':
+              raise SystemExit('Tag must match the manifest version')
+          PY
+          git merge-base --is-ancestor HEAD origin/master
+      - name: Check syntax and run tests
+        run: |
+          node --check bootstrap.js
+          node --check lib.js
+          node --check legacy/overlay.js
+          node --test tests/*.test.js
+      - name: Build packages and update feed
+        run: |
+          python scripts/build.py
+          python -m unittest discover -s tests -p 'test_*.py'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: zotero-citation-count
+          path: dist/
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: zotero-citation-count-release
+      cancel-in-progress: false
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: zotero-citation-count
+          path: dist
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          gh release create "$RELEASE_TAG" dist/*.xpi dist/updates.json dist/SHA256SUMS --verify-tag --title "$RELEASE_TAG" --generate-notes
