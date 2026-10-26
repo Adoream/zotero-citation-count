@@ -9,6 +9,19 @@ var CitationHelpers = {
     value = value.replace(/^\s+|\s+$/g, '').replace(/^https?:\/\/(?:dx\.)?doi\.org\//i, '').replace(/^doi:\s*/i, '');
     return /^10\.\d{4,9}\/\S+$/i.test(value) ? value : null;
   },
+  publication: function (body) {
+    if (!body || typeof body !== 'object' || Array.isArray(body)) throw new Error('The API returned an invalid response');
+    if (body.error) {
+      throw new Error((body.error.code || 'api_error') + ': ' + (body.error.message || 'Publication lookup failed'));
+    }
+    var result = body.data;
+    if (result === null) throw new Error('No publication found for this DOI');
+    if (!result || typeof result !== 'object' || Array.isArray(result)) throw new Error('The API did not return publication data');
+    if (result.error) throw new Error((result.error.code || 'upstream_error') + ': ' + (result.error.message || 'Publication lookup failed'));
+    this.count(result.citationCount);
+    if (result.influentialCitationCount !== undefined && result.influentialCitationCount !== null) this.count(result.influentialCitationCount);
+    return result;
+  },
   count: function (value) {
     if (typeof value !== 'number' && typeof value !== 'string') throw new Error('The API did not return a valid citation count');
     if (typeof value === 'string' && !/^\d+$/.test(value)) throw new Error('The API returned an invalid citation count');

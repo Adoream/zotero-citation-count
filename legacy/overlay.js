@@ -62,11 +62,14 @@ var DOICitationLegacy = (function () {
           if (stopped) return;
           if (error) { fail(error); return; }
           try {
-            if (request.status < 200 || request.status >= 300) throw new Error('HTTP ' + request.status);
             var result;
             if (typeof JSON !== 'undefined' && JSON.parse) result = JSON.parse(request.responseText);
             else result = Components.classes['@mozilla.org/dom/json;1'].createInstance(Components.interfaces.nsIJSON).decode(request.responseText);
-            CitationHelpers.count(result && result.citationCount);
+            if (request.status < 200 || request.status >= 300) {
+              if (result && result.error) CitationHelpers.publication(result);
+              throw new Error('HTTP ' + request.status);
+            }
+            result = CitationHelpers.publication(result);
             cache[key] = result; save(result);
           } catch (e) { fail(e); }
         }

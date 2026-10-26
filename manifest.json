@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "DOI Citation Count",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Fetch publication citation counts by DOI using api.rua.dev.",
   "applications": {
     "zotero": {

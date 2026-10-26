@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.2
+
+- Adapt modern and legacy clients to the api.rua.dev data/error response envelopes.
+- Reject missing publications and invalid counts while preserving existing metadata.
+
 ## 0.1.1
 
 - Automatically queue newly added publications for citation-count updates on Zotero 7–10.

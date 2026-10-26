@@ -33,3 +33,19 @@ test("updates managed fields without discarding unrelated metadata", () => {
   assert.ok(result.includes("Influential Citation Count: 0"));
   assert.equal(helpers.merge(result, { citationCount: "24", influentialCitationCount: "0" }, "2026-10-24"), result);
 });
+
+test("unwraps the current publication envelope and validates optional counts", () => {
+  for (const count of [0, "0", 24, "24"]) {
+    const data = { citationCount: count, influentialCitationCount: "0" };
+    assert.equal(helpers.publication({ data }), data);
+  }
+  for (const body of [null, [], {}, { citationCount: "24" }, { data: null },
+    { data: [] }, { data: {} }, { data: { citationCount: null } },
+    { data: { citationCount: "24", influentialCitationCount: "invalid" } }]) {
+    assert.throws(() => helpers.publication(body));
+  }
+  assert.throws(() => helpers.publication({ error: {
+    code: "upstream_error", message: "The publication provider request failed."
+  } }), /upstream_error: The publication provider request failed/);
+  assert.throws(() => helpers.publication({ data: null }), /No publication found/);
+});

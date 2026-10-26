@@ -1,13 +1,13 @@
 # DOI Citation Count
 
-Fetch publication citation counts by DOI from `https://api.rua.dev/v1/publications?scraper=citationcount&doi=...`. No API key is required. All plugin UI, messages, and documentation are in English.
+Fetch publication citation counts by DOI from `https://api.rua.dev/v1/publications?scraper=citationcount&doi=...`. No API key is required. The [API field guide](https://api.rua.dev/#publications) documents the response envelope: successful single-source responses contain `{ "data": { "citationCount": "24", "influentialCitationCount": "0" } }`; failures contain `{ "error": { "code": "...", "message": "..." } }`. Missing publications and invalid counts preserve the saved count and update date. All plugin UI, messages, and documentation are in English.
 
 ## Version coverage
 
 | Client | Package | Features and validation status |
 | --- | --- | --- |
-| Zotero 7-10 desktop | `dist/doi-citation-count-0.1.1.xpi` | Context menu, Extra metadata, and Citation Count / Citation Count updated date columns. Automated tests pass; actual installation and UI need manual validation. |
-| Zotero 5/6 desktop | `dist/doi-citation-count-0.1.1-legacy.xpi` | Restart-required XUL extension; context menu and Extra metadata. Needs validation on actual clients. |
+| Zotero 7-10 desktop | `dist/doi-citation-count-0.1.2.xpi` | Context menu, Extra metadata, and Citation Count / Citation Count updated date columns. Automated tests pass; actual installation and UI need manual validation. |
+| Zotero 5/6 desktop | `dist/doi-citation-count-0.1.2-legacy.xpi` | Restart-required XUL extension; context menu and Extra metadata. Needs validation on actual clients. |
 | Zotero 3/4 Standalone | Legacy package | Experimental compatibility with synchronous saving fallback. Not verified on actual clients. |
 | Zotero 1-4 for Firefox | Legacy package, installed in Firefox | Experimental XUL overlay. Very old runtimes can lack JSON support or current TLS support; not verified on actual clients. |
 | Mobile, web library, browser Connector | No installable package | These products cannot run desktop XPI plugins. Saved Extra metadata is available through normal library synchronization. |
@@ -54,7 +54,7 @@ The example DOI `10.3964/j.issn.1000-0593` returned `citationCount: "24"` and `i
 
 Download packages from [GitHub Releases](https://github.com/Adoream/zotero-citation-count/releases/latest). The modern package uses the HTTPS `updates.json` asset in the latest release for Zotero updates. Each release contains modern and legacy XPI packages, the modern update feed, and `SHA256SUMS`. Legacy packages must be upgraded manually.
 
-In Zotero's Add-ons/Plugins manager, keep automatic add-on updates enabled (the default). You can also use **Check for Updates** in the gear menu. The update feed becomes available after the first GitHub Release is published. If you installed a local 0.3.x development package, install public version 0.1.0 manually once: Zotero does not automatically downgrade version numbers. Subsequent public versions such as 0.1.1 can update normally.
+In Zotero's Add-ons/Plugins manager, keep automatic add-on updates enabled (the default). You can also use **Check for Updates** in the gear menu. The update feed becomes available after the first GitHub Release is published. If you installed a local 0.3.x development package, install public version 0.1.0 manually once: Zotero does not automatically downgrade version numbers. Subsequent public versions such as 0.1.2 can update normally.
 
 GitHub Actions builds and tests changes pushed to `master` and pull requests. It publishes a release only when a matching version tag is pushed. No personal access token or additional repository secret is required; the release job uses GitHub's built-in token with `contents: write`.
 
@@ -65,12 +65,12 @@ To publish the next version:
 3. Commit and push to `master`, then create and push the matching tag:
 
 ```sh
-git tag v0.1.1
+git tag v0.1.2
 git push origin master
-git push origin v0.1.1
+git push origin v0.1.2
 ```
 
-For later releases, replace `v0.1.1` with the new version. The workflow checks that the tag matches the manifest and points to a commit on `master`. Pushing `master` alone produces a downloadable build artifact, without publishing a release.
+For later releases, replace `v0.1.2` with the new version. The workflow checks that the tag matches the manifest and points to a commit on `master`. Pushing `master` alone produces a downloadable build artifact, without publishing a release.
 
 ```sh
 node --test tests/*.test.js

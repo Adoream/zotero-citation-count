@@ -6,7 +6,11 @@ const path = require('node:path');
 const helpers = require('../lib.js');
 
 for (const asynchronous of [false, true]) {
-  test(`legacy updates through ${asynchronous ? 'saveTx' : 'save'} and deduplicates requests`, async () => {
+ for (const body of [{ data: { citationCount: "0" } }, { data: null },
+   { error: { code: "upstream_error", message: "Provider failed" } },
+   { data: { citationCount: "bad" } }]) {
+  const success = body.data && body.data.citationCount === "0";
+  test(`legacy updates through ${asynchronous ? 'saveTx' : 'save'} and handles ${JSON.stringify(body)}`, async () => {
     let calls = 0, saves = 0, message;
     const makeItem = () => ({
       extra: 'Note: retained', isRegularItem: () => true, isEditable: () => true,
@@ -24,7 +28,7 @@ for (const asynchronous of [false, true]) {
       XMLHttpRequest: function () {
         this.open = (method, url) => { assert.ok(url.includes('doi=10.1234%2Fexample')); };
         this.abort = () => {};
-        this.send = () => { calls++; this.status = 200; this.responseText = '{"citationCount":"0"}'; this.onload(); };
+        this.send = () => { calls++; this.status = body.error ? 502 : 200; this.responseText = JSON.stringify(body); this.onload(); };
       }
     };
     const scope = vm.createContext({ window: win, Zotero: { ProgressWindow: function () {
@@ -35,10 +39,14 @@ for (const asynchronous of [false, true]) {
     vm.runInContext(fs.readFileSync(path.join(__dirname, '../legacy/overlay.js'), 'utf8'), scope);
     scope.DOICitationLegacy.update();
     await finished;
-    assert.equal(calls, 1);
-    assert.equal(saves, 2);
-    assert.equal(helpers.read(items[0].extra), '0');
+    assert.equal(calls, success ? 1 : 2);
+    assert.equal(saves, success ? 2 : 0);
+    assert.equal(helpers.read(items[0].extra), success ? '0' : '');
     assert.ok(items[0].extra.includes('Note: retained'));
-    assert.ok(message.includes('Updated 2; skipped 0; failed 0.'));
+    assert.ok(message.includes(success ? 'Updated 2; skipped 0; failed 0.' : 'Updated 0; skipped 0; failed 2.'));
+    if (!success) assert.equal(items[0].extra, 'Note: retained');
+    if (body.error) assert.match(message, /upstream_error: Provider failed/);
   });
+}
+
 }

@@ -150,8 +150,7 @@ async function updateItems(selected) {
           const response = await Zotero.HTTP.request("GET", "https://api.rua.dev/v1/publications?scraper=citationcount&doi=" + encodeURIComponent(doi), {
             responseType: "json", timeout: 30000
           });
-          const result = response.response;
-          helpers.count(result?.citationCount);
+          const result = helpers.publication(response.response);
           cache.set(key, result);
           // Keep requests sequential and leave a short interval for the public API.
           await Zotero.Promise.delay(300);
@@ -164,6 +163,14 @@ async function updateItems(selected) {
         await item.saveTx();
         updated++;
       } catch (error) {
+        // Zotero throws on non-2xx responses; preserve the API's structured error.
+        if (error.xmlhttp) {
+          try {
+            helpers.publication(error.xmlhttp.response);
+          } catch (apiError) {
+            if (error.xmlhttp.response?.error) error = apiError;
+          }
+        }
         Zotero.logError(error);
         failures.push(`${doi}: ${error.message}`);
       }

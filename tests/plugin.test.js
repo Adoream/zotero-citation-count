@@ -5,7 +5,9 @@ const fs = require("node:fs");
 const path = require("node:path");
 const helpers = require("../lib.js");
 
-test("batch update deduplicates DOI, preserves failed items, saves zero, and unregisters column", async () => {
+for (const failure of [null, { data: null }, { data: { citationCount: "bad" } },
+  { error: { code: "upstream_error", message: "Provider failed" } }]) {
+test(`batch update preserves failures: ${JSON.stringify(failure)}`, async () => {
   function makeItem(doi, extra = "My Note: kept") {
     return {
       extra, saves: 0,
@@ -33,8 +35,16 @@ test("batch update deduplicates DOI, preserves failed items, saves zero, and unr
       calls++;
       assert.equal(method, "GET");
       assert.ok(url.startsWith("https://api.rua.dev/v1/publications?scraper=citationcount&doi="));
-      if (url.endsWith("%2Fb")) throw new Error("timeout");
-      return { response: { citationCount: "0", influentialCitationCount: "0" } };
+      if (url.endsWith("%2Fb")) {
+        if (failure?.error) {
+          const error = new Error("HTTP 502");
+          error.xmlhttp = { response: failure };
+          throw error;
+        }
+        if (failure) return { response: failure };
+        throw new Error("timeout");
+      }
+      return { response: { data: { citationCount: "0", influentialCitationCount: "0" } } };
     } },
     Promise: { delay: async () => {} },
     ProgressWindow: function () { this.changeHeadline = this.show = this.close = () => {};
@@ -62,6 +72,7 @@ test("batch update deduplicates DOI, preserves failed items, saves zero, and unr
   assert.equal(items[2].extra, "Citation Count: 9");
   assert.equal(items[2].saves, 0);
   assert.ok(alert.includes("Updated 2; skipped 1; failed 1"));
+  if (failure?.error) assert.match(alert, /upstream_error: Provider failed/);
   // New items are queued once and modify notifications from saving are ignored.
   observer.notify("modify", "item", [0]);
   assert.equal(scope.automaticTask, null);
@@ -82,3 +93,5 @@ test("batch update deduplicates DOI, preserves failed items, saves zero, and unr
   assert.equal(scope.pendingItems.size, 0);
   assert.deepEqual(removed, ["citationCount", "citationCountUpdatedDate"]);
 });
+
+}
