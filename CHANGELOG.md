@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.1
+
+- Automatically queue newly added publications for citation-count updates on Zotero 7–10.
+- Replace modal alerts with notices that close automatically in both packages.
+- Rename the modern date column to Citation Count updated date.
+
 ## 0.1.0
 
 First public release.

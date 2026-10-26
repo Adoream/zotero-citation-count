@@ -17,7 +17,12 @@ var DOICitationLegacy = (function () {
       if (stopped) { busy = false; return; }
       if (index >= items.length) {
         busy = false;
-        window.alert('Citation Count\n\nUpdated ' + updated + '; skipped ' + skipped + '; failed ' + failures.length + '.' + (failures.length ? '\n\n' + failures.slice(0, 10).join('\n') : ''));
+        var notice = new Zotero.ProgressWindow({ closeOnClick: true });
+        notice.changeHeadline('Citation Count');
+        var message = 'Updated ' + updated + '; skipped ' + skipped + '; failed ' + failures.length + '.' + (failures.length ? '\n\n' + failures.slice(0, 10).join('\n') : '');
+        notice.addDescription(message.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'));
+        notice.show();
+        notice.startCloseTimer(5000);
         return;
       }
       var item = items[index++], doi;

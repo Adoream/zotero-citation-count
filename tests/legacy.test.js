@@ -27,7 +27,11 @@ for (const asynchronous of [false, true]) {
         this.send = () => { calls++; this.status = 200; this.responseText = '{"citationCount":"0"}'; this.onload(); };
       }
     };
-    const scope = vm.createContext({ window: win, Zotero: {}, CitationHelpers: helpers });
+    const scope = vm.createContext({ window: win, Zotero: { ProgressWindow: function () {
+      this.changeHeadline = this.show = () => {};
+      this.addDescription = text => { message = text; };
+      this.startCloseTimer = delay => { assert.equal(delay, 5000); finish(); };
+    } }, CitationHelpers: helpers });
     vm.runInContext(fs.readFileSync(path.join(__dirname, '../legacy/overlay.js'), 'utf8'), scope);
     scope.DOICitationLegacy.update();
     await finished;

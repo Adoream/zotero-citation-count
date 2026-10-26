@@ -4,6 +4,9 @@ var helperScope = {};
 var columnKeys = [];
 var active = false;
 var busy = false;
+var observerID = null;
+var pendingItems = new Set();
+var automaticTask = null;
 var windowCleanups = new Map();
 
 function install() {}
@@ -25,7 +28,7 @@ async function startup(data, reason) {
     zoteroPersist: ["width", "hidden", "sortDirection"]
   }, {
     dataKey: "citationCountUpdatedDate",
-    label: "Updated Date",
+    label: "Citation Count updated date",
     pluginID: data.id,
     dataProvider: item => item.isRegularItem() ? helperScope.CitationHelpers.updatedDate(item.getField("extra")) : "",
     zoteroPersist: ["width", "hidden", "sortDirection"]
@@ -38,6 +41,13 @@ async function startup(data, reason) {
   } else {
     columnKeys = (await Zotero.ItemTreeManager.registerColumns(options)).filter(Boolean);
   }
+  observerID = Zotero.Notifier.registerObserver({
+    notify(event, type, ids) {
+      if (!active || event !== "add" || type !== "item") return;
+      for (const id of ids) pendingItems.add(id);
+      scheduleAutomaticUpdate();
+    }
+  }, ["item"], "doi-citation-count");
   for (const win of Zotero.getMainWindows()) addToWindow(win);
 }
 
@@ -60,7 +70,7 @@ function addToWindow(win) {
   entry.setAttribute("label", "Update Citation Count (DOI)");
   const command = () => updateSelected(win).catch(error => {
     Zotero.logError(error);
-    if (active) Services.prompt.alert(win, "Citation Count", error.message);
+    if (active) showNotice(error.message);
   });
   const showing = () => {
     entry.disabled = busy || !(win.ZoteroPane.getSelectedItems() || []).some(item => item.isRegularItem());
@@ -81,11 +91,48 @@ function removeFromWindow(win) {
   windowCleanups.delete(win);
 }
 
+function showNotice(message) {
+  const notice = new Zotero.ProgressWindow({ closeOnClick: true });
+  notice.changeHeadline("Citation Count");
+  // ProgressWindow descriptions accept markup; escape external error messages.
+  notice.addDescription(message.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"));
+  notice.show();
+  notice.startCloseTimer(5000);
+}
+
+function scheduleAutomaticUpdate() {
+  if (!active || automaticTask || !pendingItems.size) return;
+  // Do not return this promise to Notifier: saves must occur outside its transaction.
+  automaticTask = (async () => {
+    await Zotero.Promise.delay(1000);
+    if (!active || busy) return;
+    const ids = [...pendingItems];
+    pendingItems.clear();
+    const items = await Zotero.Items.getAsync(ids);
+    if (active && busy) {
+      for (const id of ids) pendingItems.add(id);
+      return;
+    }
+    if (active) await updateItems(items.filter(Boolean));
+  })().catch(error => {
+    Zotero.logError(error);
+    if (active) showNotice(error.message);
+  }).finally(() => {
+    automaticTask = null;
+    if (!busy) scheduleAutomaticUpdate();
+  });
+}
+
 async function updateSelected(win) {
+  return updateItems([...win.ZoteroPane.getSelectedItems()]);
+}
+
+async function updateItems(selected) {
   if (busy || !active) return;
   busy = true;
   const helpers = helperScope.CitationHelpers;
-  const items = [...win.ZoteroPane.getSelectedItems()].filter(item => item.isRegularItem());
+  const items = selected.filter(item => item.isRegularItem() && !item.deleted);
+  if (!items.length) { busy = false; return; }
   const cache = new Map();
   let updated = 0, skipped = 0;
   const failures = [];
@@ -123,16 +170,20 @@ async function updateSelected(win) {
     }
     if (active) {
       const summary = `Updated ${updated}; skipped ${skipped}; failed ${failures.length}.`;
-      Services.prompt.alert(win, "Citation Count", summary + (failures.length ? "\n\n" + failures.slice(0, 10).join("\n") : ""));
+      showNotice(summary + (failures.length ? "\n\n" + failures.slice(0, 10).join("\n") : ""));
     }
   } finally {
     progress.close();
     busy = false;
+    scheduleAutomaticUpdate();
   }
 }
 
 async function shutdown(data, reason) {
   active = false;
+  if (observerID !== null) Zotero.Notifier.unregisterObserver(observerID);
+  observerID = null;
+  pendingItems.clear();
   for (const win of [...windowCleanups.keys()]) removeFromWindow(win);
   if (columnKeys.length) {
     if (Zotero.ItemTreeManager.unregisterColumn) {

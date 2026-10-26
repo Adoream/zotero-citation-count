@@ -6,8 +6,8 @@ Fetch publication citation counts by DOI from `https://api.rua.dev/v1/publicatio
 
 | Client | Package | Features and validation status |
 | --- | --- | --- |
-| Zotero 7-10 desktop | `dist/doi-citation-count-0.1.0.xpi` | Context menu, Extra metadata, and Citation Count / Updated Date columns. Automated tests pass; actual installation and UI need manual validation. |
-| Zotero 5/6 desktop | `dist/doi-citation-count-0.1.0-legacy.xpi` | Restart-required XUL extension; context menu and Extra metadata. Needs validation on actual clients. |
+| Zotero 7-10 desktop | `dist/doi-citation-count-0.1.1.xpi` | Context menu, Extra metadata, and Citation Count / Citation Count updated date columns. Automated tests pass; actual installation and UI need manual validation. |
+| Zotero 5/6 desktop | `dist/doi-citation-count-0.1.1-legacy.xpi` | Restart-required XUL extension; context menu and Extra metadata. Needs validation on actual clients. |
 | Zotero 3/4 Standalone | Legacy package | Experimental compatibility with synchronous saving fallback. Not verified on actual clients. |
 | Zotero 1-4 for Firefox | Legacy package, installed in Firefox | Experimental XUL overlay. Very old runtimes can lack JSON support or current TLS support; not verified on actual clients. |
 | Mobile, web library, browser Connector | No installable package | These products cannot run desktop XPI plugins. Saved Extra metadata is available through normal library synchronization. |
@@ -20,7 +20,7 @@ Different packages are necessary because Zotero 7+ uses manifest.json and older 
 2. Open **Tools → Plugins** (or **Add-ons**), click the gear icon, and select **Install Add-on From File**. For historical Firefox installations, use Firefox's Add-ons manager.
 3. Install the XPI. Restart after installing or removing the legacy package.
 4. Select one or more publications and choose **Update Citation Count (DOI)** from the item context menu.
-5. On Zotero 7-10, right-click the item-list header and enable **Citation Count** and **Updated Date**. On older clients, view the item's **Extra** field.
+5. On Zotero 7-10, right-click the item-list header and enable **Citation Count** and **Citation Count updated date**. On older clients, view the item's **Extra** field.
 
 The DOI field is preferred, with fallback to `DOI: ...` in Extra. DOI URLs are accepted. Attachments, notes, invalid DOIs, and read-only items are skipped. Requests run sequentially, and duplicate DOIs share responses within a batch. Failed API requests preserve saved counts.
 
@@ -33,9 +33,11 @@ Citation Count Updated: 2026-10-24T00:00:00.000Z
 Influential Citation Count: 0
 ```
 
-Only DOIs are sent to api.rua.dev when you manually request an update. Titles, notes, and attachments are not uploaded. Saved statistics synchronize with Zotero and remain readable offline. Disabling or uninstalling the extension retains the metadata. Counts reflect the API's Semantic Scholar coverage and may differ from other services. Legacy clients store the update timestamp in UTC date format.
+On Zotero 7–10, newly added publications automatically enter an update queue after a short delay, including items added by Connector, import, or synchronization while the plugin is running. Only items with a valid DOI and write permission are updated. Existing items are not refreshed on startup; if a DOI is added later, use the context menu. Legacy clients still require manual updates. Completion and error messages use non-blocking notices that disappear after five seconds.
 
-The **Updated Date** column shows the last successful citation-count update as `YYYY-MM-DD` in UTC. It reads `Citation Count Updated` from Extra, including timestamps saved by the legacy package. Missing or invalid dates display a blank cell. Failed requests retain the previous count and date. Zotero 9/10 are included in the manifest range; their actual UI compatibility still requires testing on those clients.
+Only DOIs are sent to api.rua.dev during automatic or manual updates. Titles, notes, and attachments are not uploaded. Saved statistics synchronize with Zotero and remain readable offline. Disabling or uninstalling the extension retains the metadata. Counts reflect the API's Semantic Scholar coverage and may differ from other services. Legacy clients store the update timestamp in UTC date format.
+
+The **Citation Count updated date** column shows the last successful citation-count update as `YYYY-MM-DD` in UTC. It reads `Citation Count Updated` from Extra, including timestamps saved by the legacy package. Missing or invalid dates display a blank cell. Failed requests retain the previous count and date. Zotero 9/10 are included in the manifest range; their actual UI compatibility still requires testing on those clients.
 
 ## Development
 
@@ -63,12 +65,12 @@ To publish the next version:
 3. Commit and push to `master`, then create and push the matching tag:
 
 ```sh
-git tag v0.1.0
+git tag v0.1.1
 git push origin master
-git push origin v0.1.0
+git push origin v0.1.1
 ```
 
-For later releases, replace `v0.1.0` with the new version. The workflow checks that the tag matches the manifest and points to a commit on `master`. Pushing `master` alone produces a downloadable build artifact, without publishing a release.
+For later releases, replace `v0.1.1` with the new version. The workflow checks that the tag matches the manifest and points to a commit on `master`. Pushing `master` alone produces a downloadable build artifact, without publishing a release.
 
 ```sh
 node --test tests/*.test.js

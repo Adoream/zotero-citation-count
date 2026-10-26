@@ -16,9 +16,14 @@ test("batch update deduplicates DOI, preserves failed items, saves zero, and unr
     };
   }
   const items = [makeItem("10.1234/a"), makeItem("10.1234/a"), makeItem("10.1234/b", "Citation Count: 9"), makeItem("")];
-  let calls = 0, alert;
+  let calls = 0, alert, observer, unregistered;
   const removed = [], columns = [];
   const zotero = {
+    Notifier: {
+      registerObserver(value) { observer = value; return "observer"; },
+      unregisterObserver(id) { unregistered = id; }
+    },
+    Items: { getAsync: async ids => ids.map(id => items[id]) },
     initializationPromise: Promise.resolve(), getMainWindows: () => [], logError() {},
     ItemTreeManager: {
       registerColumn: option => { columns.push(option); return option.dataKey; },
@@ -32,7 +37,9 @@ test("batch update deduplicates DOI, preserves failed items, saves zero, and unr
       return { response: { citationCount: "0", influentialCitationCount: "0" } };
     } },
     Promise: { delay: async () => {} },
-    ProgressWindow: function () { this.changeHeadline = this.show = this.close = () => {}; }
+    ProgressWindow: function () { this.changeHeadline = this.show = this.close = () => {};
+      this.addDescription = message => { alert = message; };
+      this.startCloseTimer = delay => assert.equal(delay, 5000); }
   };
   const services = {
     wm: { getMostRecentWindow: () => ({ Zotero: zotero }) },
@@ -42,7 +49,7 @@ test("batch update deduplicates DOI, preserves failed items, saves zero, and unr
   const scope = vm.createContext({ Services: services });
   vm.runInContext(fs.readFileSync(path.join(__dirname, "../bootstrap.js"), "utf8"), scope);
   await scope.startup({ id: "test", rootURI: "file:///test/" });
-  assert.deepEqual(columns.map(column => column.label), ["Citation Count", "Updated Date"]);
+  assert.deepEqual(columns.map(column => column.label), ["Citation Count", "Citation Count updated date"]);
   assert.equal(columns[1].dataProvider(items[0]), "");
   await scope.updateSelected({ ZoteroPane: { getSelectedItems: () => items } });
   assert.equal(calls, 2);
@@ -55,6 +62,23 @@ test("batch update deduplicates DOI, preserves failed items, saves zero, and unr
   assert.equal(items[2].extra, "Citation Count: 9");
   assert.equal(items[2].saves, 0);
   assert.ok(alert.includes("Updated 2; skipped 1; failed 1"));
+  // New items are queued once and modify notifications from saving are ignored.
+  observer.notify("modify", "item", [0]);
+  assert.equal(scope.automaticTask, null);
+  observer.notify("add", "item", [0, 0, 3]);
+  await scope.automaticTask;
+  assert.equal(items[0].saves, 2);
+  assert.equal(items[3].saves, 0);
+  assert.equal(calls, 3);
+  // Additions arriving during a manual update stay queued until it completes.
+  const manual = scope.updateSelected({ ZoteroPane: { getSelectedItems: () => [items[0]] } });
+  observer.notify("add", "item", [1]);
+  await manual;
+  while (scope.automaticTask) await scope.automaticTask;
+  assert.equal(items[1].saves, 2);
   await scope.shutdown({});
+  assert.equal(unregistered, "observer");
+  observer.notify("add", "item", [0]);
+  assert.equal(scope.pendingItems.size, 0);
   assert.deepEqual(removed, ["citationCount", "citationCountUpdatedDate"]);
 });
